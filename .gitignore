@@ -1,0 +1,34 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Caches and temporary files
+.pytest_cache/
+.coverage
+htmlcov/
+.DS_Store
+*.swp
+*~
+
+# Maven & Java build artifacts
+apps/java_banking_app/target/
+**/target/
+*.class
+
+# Upload and extraction temporary directories
+reports/uploads/
+reports/extracted/
+reports/test_report_*.json
+dummy_front.jpg
+
+# Model checkpoints / large weight files
+checkpoints/
+*.gguf
+*.bin

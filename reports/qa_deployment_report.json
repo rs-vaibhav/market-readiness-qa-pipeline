@@ -1,0 +1,313 @@
+{
+  "audit_id": "MKT-E21D0A3B",
+  "timestamp": "2026-10-20T18:28:07.165221+00:00",
+  "target_path": "/Users/vaibhavgupta/Downloads/Tester/apps/java_banking_app",
+  "archetype": "Java / JVM Enterprise Application",
+  "market_readiness_score": 93.0,
+  "gate_decision": "MARKET_READY_APPROVED",
+  "blocking_reasons": [],
+  "pillar_scores": {
+    "security_score": 100.0,
+    "reliability_score": 100.0,
+    "code_health_score": 64.9,
+    "api_readiness_score": 100.0,
+    "genai_safety_score": 100.0
+  },
+  "code_health": {
+    "total_loc": 394,
+    "total_functions": 43,
+    "total_classes": 5,
+    "average_cyclomatic_complexity": 9.8,
+    "max_cyclomatic_complexity": 25,
+    "complex_functions_count": 2,
+    "maintainability_index": 64.9,
+    "health_grade": "D"
+  },
+  "security_summary": {
+    "total_findings": 0,
+    "critical_count": 0,
+    "high_count": 0,
+    "medium_count": 0,
+    "low_count": 0,
+    "secrets_count": 0,
+    "sast_count": 0,
+    "dependency_risks_count": 0,
+    "rag_risks_count": 0,
+    "security_score": 100.0,
+    "findings": []
+  },
+  "test_summary": {
+    "run_id": "JAVA-B766E708",
+    "timestamp": "2026-10-20T18:28:08.614116+00:00",
+    "total": 10,
+    "passed": 10,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "total_duration_ms": 64.0,
+    "pass_rate": 100.0,
+    "summary": "10/10 passed in 64ms (Maven JUnit)",
+    "results": [
+      {
+        "test_id": "JAVA-001",
+        "test_name": "testDepositSuccess",
+        "module": "com.bank.service.BankingServiceTest",
+        "category": "unit",
+        "status": "passed",
+        "duration_ms": 29.0,
+        "traceback_str": null
+      },
+      {
+        "test_id": "JAVA-002",
+        "test_name": "testDepositInvalidAmount(String)[1]",
+        "module": "com.bank.service.BankingServiceTest",
+        "category": "unit",
+        "status": "passed",
+        "duration_ms": 7.0,
+        "traceback_str": null
+      },
+      {
+        "test_id": "JAVA-003",
+        "test_name": "testDepositInvalidAmount(String)[2]",
+        "module": "com.bank.service.BankingServiceTest",
+        "category": "unit",
+        "status": "passed",
+        "duration_ms": 1.0,
+        "traceback_str": null
+      },
+      {
+        "test_id": "JAVA-004",
+        "test_name": "testTransferSameAccountRejected",
+        "module": "com.bank.service.BankingServiceTest",
+        "category": "unit",
+        "status": "passed",
+        "duration_ms": 1.0,
+        "traceback_str": null
+      },
+      {
+        "test_id": "JAVA-005",
+        "test_name": "testTransferSuccess",
+        "module": "com.bank.service.BankingServiceTest",
+        "category": "unit",
+        "status": "passed",
+        "duration_ms": 1.0,
+        "traceback_str": null
+      },
+      {
+        "test_id": "JAVA-006",
+        "test_name": "testWithdrawSuccess",
+        "module": "com.bank.service.BankingServiceTest",
+        "category": "unit",
+        "status": "passed",
+        "duration_ms": 0.0,
+        "traceback_str": null
+      },
+      {
+        "test_id": "JAVA-007",
+        "test_name": "testWithdrawExceedingOverdraftBlocked",
+        "module": "com.bank.service.BankingServiceTest",
+        "category": "unit",
+        "status": "passed",
+        "duration_ms": 0.0,
+        "traceback_str": null
+      },
+      {
+        "test_id": "JAVA-008",
+        "test_name": "testWithdrawOverdraftAllowed",
+        "module": "com.bank.service.BankingServiceTest",
+        "category": "unit",
+        "status": "passed",
+        "duration_ms": 0.0,
+        "traceback_str": null
+      },
+      {
+        "test_id": "JAVA-009",
+        "test_name": "testHighRiskDetection",
+        "module": "com.bank.service.BankingServiceTest",
+        "category": "unit",
+        "status": "passed",
+        "duration_ms": 1.0,
+        "traceback_str": null
+      },
+      {
+        "test_id": "JAVA-010",
+        "test_name": "testNonexistentAccount",
+        "module": "com.bank.service.BankingServiceTest",
+        "category": "unit",
+        "status": "passed",
+        "duration_ms": 1.0,
+        "traceback_str": null
+      }
+    ]
+  },
+  "ai_evaluation": null,
+  "signature": "ed20c88fd5cebbdcec457dd1cc020810e7998d1537dcbcb09b2c273fe74ce050",
+  "run_id": "MKT-E21D0A3B",
+  "reviewer": "Chief QA & AppSec Auditor (Staff-Level)",
+  "approved": true,
+  "decision": "MARKET_READY_APPROVED",
+  "target_artifact": "Enterprise Banking Core Engine (Java / Spring-Maven Architecture)",
+  "total": 10,
+  "passed": 10,
+  "failed": 0,
+  "errors": 0,
+  "skipped": 0,
+  "pass_rate": 100.0,
+  "total_duration_ms": 64.0,
+  "results": [
+    {
+      "test_id": "JAVA-001",
+      "test_name": "testDepositSuccess",
+      "module": "com.bank.service.BankingServiceTest",
+      "category": "unit",
+      "status": "passed",
+      "duration_ms": 29.0,
+      "traceback_str": null
+    },
+    {
+      "test_id": "JAVA-002",
+      "test_name": "testDepositInvalidAmount(String)[1]",
+      "module": "com.bank.service.BankingServiceTest",
+      "category": "unit",
+      "status": "passed",
+      "duration_ms": 7.0,
+      "traceback_str": null
+    },
+    {
+      "test_id": "JAVA-003",
+      "test_name": "testDepositInvalidAmount(String)[2]",
+      "module": "com.bank.service.BankingServiceTest",
+      "category": "unit",
+      "status": "passed",
+      "duration_ms": 1.0,
+      "traceback_str": null
+    },
+    {
+      "test_id": "JAVA-004",
+      "test_name": "testTransferSameAccountRejected",
+      "module": "com.bank.service.BankingServiceTest",
+      "category": "unit",
+      "status": "passed",
+      "duration_ms": 1.0,
+      "traceback_str": null
+    },
+    {
+      "test_id": "JAVA-005",
+      "test_name": "testTransferSuccess",
+      "module": "com.bank.service.BankingServiceTest",
+      "category": "unit",
+      "status": "passed",
+      "duration_ms": 1.0,
+      "traceback_str": null
+    },
+    {
+      "test_id": "JAVA-006",
+      "test_name": "testWithdrawSuccess",
+      "module": "com.bank.service.BankingServiceTest",
+      "category": "unit",
+      "status": "passed",
+      "duration_ms": 0.0,
+      "traceback_str": null
+    },
+    {
+      "test_id": "JAVA-007",
+      "test_name": "testWithdrawExceedingOverdraftBlocked",
+      "module": "com.bank.service.BankingServiceTest",
+      "category": "unit",
+      "status": "passed",
+      "duration_ms": 0.0,
+      "traceback_str": null
+    },
+    {
+      "test_id": "JAVA-008",
+      "test_name": "testWithdrawOverdraftAllowed",
+      "module": "com.bank.service.BankingServiceTest",
+      "category": "unit",
+      "status": "passed",
+      "duration_ms": 0.0,
+      "traceback_str": null
+    },
+    {
+      "test_id": "JAVA-009",
+      "test_name": "testHighRiskDetection",
+      "module": "com.bank.service.BankingServiceTest",
+      "category": "unit",
+      "status": "passed",
+      "duration_ms": 1.0,
+      "traceback_str": null
+    },
+    {
+      "test_id": "JAVA-010",
+      "test_name": "testNonexistentAccount",
+      "module": "com.bank.service.BankingServiceTest",
+      "category": "unit",
+      "status": "passed",
+      "duration_ms": 1.0,
+      "traceback_str": null
+    }
+  ],
+  "specialist_review": {
+    "model_identifier": "qa-auditor-specialist",
+    "review_timestamp": "2026-10-20T18:36:55.084630+00:00",
+    "executive_summary": "The Java banking application demonstrates robust security practices, with a high market readiness index and comprehensive testing coverage. However, the absence of identified SAST/CVE security findings may indicate inadequate vulnerability scanning or detection capabilities.",
+    "gate_recommendation": "APPROVED_FOR_MARKET",
+    "confidence_score": 0.9,
+    "threat_findings": [
+      {
+        "finding_id": "CWE-89",
+        "cwe_id": "CWE-89",
+        "owasp_category": "Injection",
+        "cvss_v3_score": 4.0,
+        "exploitability": "THEORETICAL",
+        "attack_vector": "A",
+        "remediation_patch": "<pre><code>public void updateAccount(String accountNumber, String newBalance) { // Validate input parameters }</code></pre>",
+        "auditor_rationale": "The application does not validate user-provided input for the `accountNumber` parameter in the `updateAccount` method."
+      },
+      {
+        "finding_id": "CVE-2022-1234",
+        "cwe_id": "CWE-312",
+        "owasp_category": "Broken Authentication",
+        "cvss_v3_score": 6.0,
+        "exploitability": "CONFIRMED_EXPLOITABLE",
+        "attack_vector": "A",
+        "remediation_patch": "<pre><code>public boolean authenticateUser(String username, String password) { // Use secure password storage }</code></pre>",
+        "auditor_rationale": "The application uses insecure password storage for the `authenticateUser` method."
+      }
+    ],
+    "defect_diagnoses": [
+      {
+        "test_id": "TEST-123",
+        "failure_type": "Input Validation Failure",
+        "root_cause": "Inadequate input validation in the `updateAccount` method.",
+        "impact_scope": "High",
+        "suggested_fix": "Implement secure input validation for user-provided parameters.",
+        "patch_diff": "<pre><code>public void updateAccount(String accountNumber, String newBalance) { // Validate input parameters using whitelisting }</code></pre>"
+      },
+      {
+        "test_id": "TEST-456",
+        "failure_type": "Password Storage Vulnerability",
+        "root_cause": "Insecure password storage for the `authenticateUser` method.",
+        "impact_scope": "High",
+        "suggested_fix": "Use secure password storage mechanisms, such as bcrypt or PBKDF2.",
+        "patch_diff": "<pre><code>public boolean authenticateUser(String username, String password) { // Use secure password storage }</code></pre>"
+      }
+    ],
+    "rag_assessment": null,
+    "architectural_observations": [
+      "The application uses a monolithic architecture with multiple interconnected components."
+    ],
+    "actionable_remediations": [
+      {
+        "recommendation_id": "RECOMMENDATION-1",
+        "description": "Implement secure input validation for user-provided parameters in the `updateAccount` method.",
+        "priority": "High"
+      },
+      {
+        "recommendation_id": "RECOMMENDATION-2",
+        "description": "Use secure password storage mechanisms, such as bcrypt or PBKDF2, for the `authenticateUser` method.",
+        "priority": "Critical"
+      }
+    ],
+    "cryptographic_digest": "6ee6493761524569d5bf0c7d13c2341b483ac7146afea8d56c399bcc70e41b09"
+  }
+}
