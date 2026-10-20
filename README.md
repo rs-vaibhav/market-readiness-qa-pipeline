@@ -24,8 +24,6 @@ A comprehensive, production-grade quality assurance, application security (SAST/
 - [Supported Archetypes & Polyglot Capabilities](#supported-archetypes--polyglot-capabilities)
 - [Installation & Setup](#installation--setup)
 - [How to Audit Any GitHub Project (Step-by-Step)](#how-to-audit-any-github-project-step-by-step)
-- [Human-in-the-Loop (HITL) Dashboard](#human-in-the-loop-hitl-dashboard)
-- [Command Line Interface (CLI)](#command-line-interface-cli)
 - [Fine-Tuning Local Models (`qa-auditor-specialist`)](#fine-tuning-local-models-qa-auditor-specialist)
 - [Audit Deliverables & Report Formats](#audit-deliverables--report-formats)
 - [Compliance Standards Enforced](#compliance-standards-enforced)
@@ -223,7 +221,7 @@ Every evaluation produces three synchronized, cryptographically verified governa
 1. **Academic Research Paper PDF (`reports/qa_deployment_report.pdf`)**:
    - **Typography**: Formatted in Times New Roman serif font.
    - **Font Sizing**: 15pt bold headings, 13pt body text.
-   - **Academic Layout**: Title block, abstract, formal IEEE two-pass running header/footer ([`NumberedCanvas`](file:///Users/vaibhavgupta/Downloads/Tester/core/pdf_report_generator.py#L32-L85)), multi-pillar scorecard, OWASP vulnerability register, test matrix, and specialist model findings.
+   - **Academic Layout**: Title block, abstract, formal IEEE two-pass running header/footer ([`NumberedCanvas`](core/pdf_report_generator.py#L32-L85)), multi-pillar scorecard, OWASP vulnerability register, test matrix, and specialist model findings.
 2. **Formal ISO/IEC 29119 Markdown (`reports/qa_deployment_report.md`)**:
    - Full human-readable audit report structured with tables and code blocks.
 3. **Machine-Readable Audit JSON (`reports/qa_deployment_report.json`)**:
@@ -244,7 +242,7 @@ Every evaluation produces three synchronized, cryptographically verified governa
 ## Repository Structure
 
 ```
-Tester/
+market-readiness-qa-pipeline/
 ├── core/
 │   ├── __init__.py
 │   ├── local_specialist_reviewer.py # Dedicated inference runtime for local specialist LLM
