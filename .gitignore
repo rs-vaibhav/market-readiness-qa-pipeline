@@ -32,6 +32,9 @@ reports/
 *.zip
 dummy_front.jpg
 
+# Task checklists and local notes
+QA Pipeline Fix List.md
+
 # Model checkpoints / large weight files
 checkpoints/
 *.gguf

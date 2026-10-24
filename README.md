@@ -35,14 +35,14 @@ A comprehensive, production-grade quality assurance, application security (SAST/
 
 ```mermaid
 flowchart TD
-    A["Target Application Artifact<br>(GitHub ZIP / Local Directory / Single Source File)"] --> B["Safe Sandbox Extraction<br>(Zip Slip Traversal Mitigation)"]
+    A["Target Application Artifact<br>(GitHub ZIP / Local Directory / Single Source File)"] --> B["Archive Path Sanitization & Safe Extraction<br>(Zip Slip Traversal Mitigation & 500MB Limit)"]
     
     B --> C["Archetype & Tech Stack Detector<br>(Python, Java/Maven, Node.js, Go, Docker)"]
     
     C --> D1["Pillar 1: Application Security (30%)<br>- 18 SAST Heuristics (OWASP Top 10)<br>- Shannon Entropy Secret Scanner<br>- Dependency CVE Scanner (pom.xml, requirements.txt)"]
-    C --> D2["Pillar 2: Functional Reliability (25%)<br>- Programmatic Test Execution (pytest / mvn test)<br>- AST-Driven Automated Test Synthesis<br>- Boundary, Exception & Timeout Assertions"]
+    C --> D2["Pillar 2: Functional Reliability (25%)<br>- Programmatic Subprocess Test Execution (pytest / mvn test)<br>- AST-Driven Automated Test Synthesis<br>- Boundary, Exception & Timeout Assertions"]
     C --> D3["Pillar 3: Code Health & Maintainability (20%)<br>- McCabe Cyclomatic Complexity<br>- Halstead Volume & Maintainability Index<br>- Monolith & High-Risk Function Isolation"]
-    C --> D4["Pillar 4: API Contract Conformance (15%)<br>- Endpoint Route Discovery & Schema Validation<br>- Latency SLA Threshold Benchmarks (&lt;500ms)<br>- Payload Mutation & Type Constraint Checks"]
+    C --> D4["Pillar 4: API Contract Conformance (15%)<br>- Endpoint Route Discovery & Schema Validation<br>- Latency SLA Threshold Benchmarks (Planned)<br>- Payload Mutation Checks (Planned)"]
     C --> D5["Pillar 5: GenAI & RAG Pipeline Safety (10%)<br>- Prompt Injection & Jailbreak Resilience<br>- Context Grounding & Faithfulness Scoring<br>- Hallucination Detection & Abstention Accuracy"]
 
     D1 & D2 & D3 & D4 & D5 --> E["Market Readiness Aggregation Engine<br>(Calculates 0-100 Weighted Quality Score)"]
@@ -65,8 +65,9 @@ flowchart TD
 The engine scans and verifies RESTful endpoints, RPC handlers, and microservice interfaces:
 - **Dynamic Route Discovery**: Extracts routing definitions, URL parameters, query schemas, and HTTP verbs (`GET`, `POST`, `PUT`, `DELETE`, `PATCH`) from source code using AST analysis and framework decorators (FastAPI, Flask, Django, Spring Boot `@GetMapping`/`@PostMapping`, Express.js).
 - **Contract & Schema Validation**: Verifies that endpoint parameters adhere strictly to schema contracts, rejecting malformed types, missing required attributes, and truncated payloads.
-- **Negative & Boundary Testing**: Automatically synthesizes adversarial test requests containing null pointers, empty strings, oversized inputs, negative numbers, and boundary-value violations.
-- **Latency SLA Benchmarking**: Enforces strict response latency thresholds (<100ms for internal caches, <500ms for synchronous APIs, <2000ms for composite operations).
+- **Negative & Boundary Testing**: Automatically synthesizes boundary test inputs containing null pointers, empty strings, oversized inputs, and type boundary violations.
+- **Latency SLA Benchmarking (Planned)**: Planned enforcement of response latency thresholds (<100ms for internal caches, <500ms for synchronous APIs, <2000ms for composite operations).
+- **Payload Mutation & Fuzzing (Planned)**: Planned adversarial payload mutation and schema fuzzing engine.
 - **HTTP Header & Protocol Hygiene**: Checks for missing security headers (`X-Content-Type-Options`, `Content-Security-Policy`, `Strict-Transport-Security`, `X-Frame-Options`).
 
 ### 2. Database & Data Persistence Testing
@@ -75,7 +76,7 @@ Verifies data access layers, relational databases, document stores, and vector i
 - **Transaction Boundaries & Concurrency Safety**: Verifies that state transitions (e.g., balance transfers, inventory reservations) enforce atomic boundaries and row-level locking (e.g., `SELECT FOR UPDATE`, pessimistic locking) to prevent race conditions.
 - **State Invariant & Constraint Verification**: Validates that business logic rejects negative monetary amounts, zero divisors, duplicate unique identifiers, and illegal state transitions.
 - **Connection Pool Resilience**: Assesses timeout handling, connection leak risks, and fallback behavior during database connection dropouts.
-- **Vector Database Integrity**: Tests embedding shape consistency, cosine similarity bounds, metadata filtering correctness, and retrieval threshold tolerances for AI/RAG data stores.
+- **Vector Database Integrity (Planned)**: Planned verification for embedding shape consistency, cosine similarity bounds, metadata filtering correctness, and retrieval threshold tolerances for AI/RAG data stores.
 
 ### 3. User Interface & Human-in-the-Loop (HITL) Governance
 Provides a complete corporate governance interface (`app_hitl_dashboard.py`):
@@ -87,9 +88,10 @@ Provides a complete corporate governance interface (`app_hitl_dashboard.py`):
 
 ### 4. Environment, Dependencies & System Architecture
 Audits runtime hygiene, operational configurations, and codebase maintainability:
-- **Vulnerable Dependency Scanning (CVE)**: Inspects package manifests (`pom.xml`, `requirements.txt`, `package.json`) against known CVE records (e.g., Log4j, outdated Spring modules, vulnerable serialization libraries).
+- **Vulnerable Dependency Scanning (CVE)**: Inspects package manifests (`pom.xml`, `requirements.txt`) against known CVE records (e.g., Log4j, outdated Spring modules, vulnerable serialization libraries) and integrates dynamically with `pip-audit`.
 - **Shannon Entropy Secret Scanner**: Detects exposed API credentials, private RSA keys, AWS access keys, GitHub personal access tokens, database connection strings, and JWT secrets using high-entropy heuristic analysis.
-- **Safe Sandbox Extraction**: Sanitizes archive entry paths during ZIP extraction to mitigate Zip Slip directory traversal vulnerabilities (`CWE-22`).
+- **Archive Path Sanitization & Safe Extraction**: Sanitizes archive entry paths with `Path.is_relative_to` during ZIP extraction to mitigate Zip Slip directory traversal vulnerabilities (`CWE-22`) and enforces a 500 MB uncompressed size limit.
+- **Subprocess Test Isolation**: Executes ingested test suites in isolated Python subprocesses with injected environment paths and 120s execution timeouts.
 - **McCabe Cyclomatic Complexity**: Quantifies control flow complexity across every module and function. Flags functions exceeding threshold cyclomatic complexity (>10) as high-risk maintenance liabilities.
 - **Architecture Conformity**: Detects monolithic anti-patterns, circular import structures, and tightly coupled layers violating clean architecture principles.
 
@@ -232,7 +234,7 @@ Every evaluation produces three synchronized, checksum-verified governance recor
 
 ## Empirical Benchmark Results
 
-The market readiness gatekeeper was evaluated against a benchmark suite of 18 test targets (3 clean baseline projects and 15 repositories with known planted security, architectural, and reliability defects) located in `benchmark/`:
+The market readiness gatekeeper was evaluated against a benchmark suite of 19 test targets (3 clean baseline projects and 16 repositories with known planted security, architectural, and reliability defects) located in `benchmark/`:
 
 | ID | Benchmark Target | Archetype / Category | Expected Gate | Actual Gate | Quality Index | Result |
 |:---|:---|:---|:---|:---|:---:|:---:|
@@ -254,11 +256,12 @@ The market readiness gatekeeper was evaluated against a benchmark suite of 18 te
 | 16 | `16_vuln_dep_requests` | Planted CVE Dependency (`requests==2.25.0`) | CONDITIONAL_APPROVAL | CONDITIONAL_APPROVAL | 81.3% | PASS |
 | 17 | `17_vuln_dep_aiohttp` | Planted Critical CVE (`aiohttp==3.8.1`) | MARKET_BLOCKED | MARKET_BLOCKED | 73.3% | PASS |
 | 18 | `18_failing_unit_test` | Planted Functional Defect (Broken Assertion) | MARKET_BLOCKED | MARKET_BLOCKED | 65.7% | PASS |
+| 19 | `19_mixed_test_results` | Mixed Suite (3 Passed, 1 Failed Assertion) | MARKET_BLOCKED | MARKET_BLOCKED | 90.7% | PASS |
 
 ### Benchmark Metrics Summary:
-- **Defect Detection Recall**: 100.0% (15/15 planted defects caught)
+- **Defect Detection Recall**: 100.0% (16/16 planted defects caught)
 - **Clean Code Precision**: 100.0% (0 false positives on clean codebases)
-- **Gate Determination Accuracy**: 100.0% (18/18 correct decisions)
+- **Gate Determination Accuracy**: 100.0% (19/19 correct decisions)
 
 ---
 
@@ -276,7 +279,7 @@ The market readiness gatekeeper was evaluated against a benchmark suite of 18 te
 
 ```
 market-readiness-qa-pipeline/
-├── benchmark/                      # 18-target empirical benchmark suite & runner
+├── benchmark/                      # 19-target empirical benchmark suite & runner
 ├── core/
 │   ├── __init__.py
 │   ├── external_dataset_ingestor.py # API citation parser & hash verification
@@ -293,8 +296,7 @@ market-readiness-qa-pipeline/
 │   ├── train_lora_specialist.py    # LoRA / QLoRA training script (PEFT, transformers, SFTTrainer)
 │   └── data/                       # Fine-tuning datasets
 ├── apps/
-│   ├── java_banking_app/           # Reference Maven Java banking engine (10 JUnit 5 test cases)
-│   └── java_banking_app.zip        # GitHub-style release ZIP archive for ingestion testing
+│   └── java_banking_app/           # Reference Maven Java banking engine (10 JUnit 5 test cases)
 ├── tests/
 │   ├── __init__.py
 │   ├── conftest.py                 # Shared fixtures, vector store fakes, RAG mocks

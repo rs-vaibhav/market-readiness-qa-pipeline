@@ -72,6 +72,8 @@ def run_benchmarks():
         print(f"[{status:9s}] {bench['name']:32s} | Score: {score:5.1f} | Gate: {decision}")
 
     total = len(results)
+    total_planted = sum(1 for b in BENCHMARKS if b["expected_flaws"] > 0)
+    total_clean = sum(1 for b in BENCHMARKS if b["expected_flaws"] == 0)
     precision = true_positives / max(true_positives + false_positives, 1) * 100.0
     recall = true_positives / max(true_positives + false_negatives, 1) * 100.0
     accuracy = (true_positives + true_negatives) / total * 100.0
@@ -80,8 +82,8 @@ def run_benchmarks():
     print("BENCHMARK METRICS SUMMARY")
     print("=" * 80)
     print(f"Total Targets:     {total}")
-    print(f"True Positives:    {true_positives} / 15 (Planted defects caught)")
-    print(f"True Negatives:    {true_negatives} / 3  (Clean projects passed without false alarm)")
+    print(f"True Positives:    {true_positives} / {total_planted} (Planted defects caught)")
+    print(f"True Negatives:    {true_negatives} / {total_clean}  (Clean projects passed without false alarm)")
     print(f"False Positives:   {false_positives} (False alarms on clean code)")
     print(f"False Negatives:   {false_negatives} (Planted defects missed)")
     print(f"Precision:         {precision:.1f}%")
@@ -92,7 +94,7 @@ def run_benchmarks():
     md_lines = [
         "### Empirical Benchmark Results",
         "",
-        "The gatekeeper was rigorously evaluated across a standardized benchmark suite of 18 repositories (3 clean baseline projects and 15 containing known planted security, architectural, and reliability defects).",
+        f"The gatekeeper was rigorously evaluated across a standardized benchmark suite of {total} repositories ({total_clean} clean baseline projects and {total_planted} containing known planted security, architectural, and reliability defects).",
         "",
         "| ID | Benchmark Target | Archetype / Flaw | Expected Gate | Actual Gate | Quality Index | Result |",
         "|:---|:---|:---|:---|:---|:---:|:---:|",
@@ -107,7 +109,7 @@ def run_benchmarks():
     md_lines.extend([
         "",
         f"**Benchmark Performance Summary**:",
-        f"- **Defect Detection Recall**: {recall:.1f}% ({true_positives}/15 planted defects caught)",
+        f"- **Defect Detection Recall**: {recall:.1f}% ({true_positives}/{total_planted} planted defects caught)",
         f"- **Clean Code Precision**: {precision:.1f}% ({false_positives} false positives on clean codebases)",
         f"- **Overall Gate Determination Accuracy**: {accuracy:.1f}% ({true_positives + true_negatives}/{total} correct determinations)",
     ])

@@ -268,6 +268,33 @@ def test_compute_tax_positive():
 ''',
         },
     },
+    {
+        "name": "bench_19_mixed_test_results",
+        "description": "Mixed Suite: 3 passing unit tests and 1 failing functional assertion",
+        "expected_gate": "MARKET_BLOCKED",
+        "expected_flaws": 1,
+        "files": {
+            "math_ops.py": '''def add(a, b): return a + b
+def sub(a, b): return a - b
+def mul(a, b): return a * b
+def div(a, b): return a + b  # Planted bug: returns sum instead of quotient
+''',
+            "test_math_ops.py": '''from math_ops import add, sub, mul, div
+
+def test_add_ok():
+    assert add(10, 5) == 15
+
+def test_sub_ok():
+    assert sub(10, 5) == 5
+
+def test_mul_ok():
+    assert mul(10, 5) == 50
+
+def test_div_fails():
+    assert div(10, 5) == 2  # Fails!
+''',
+        },
+    },
 ]
 
 def generate_benchmark_targets():

@@ -898,15 +898,98 @@ def analyze_and_test(
         generated_paths.append(str(out_path))
         results["generated_tests"].append(str(out_path))
 
+    def _parse_junit_xml(xml_path: Path) -> dict:
+        """Parse pytest JUnit XML into structured test results, mirroring Maven JUnit parsing."""
+        import xml.etree.ElementTree as ET
+
+        if not xml_path.exists():
+            return {
+                "status": "ERROR", "total": 0, "passed": 0, "failed": 0,
+                "errors": 1, "skipped": 0, "pass_rate": 0.0, "results": [],
+            }
+        try:
+            tree = ET.parse(xml_path)
+            root = tree.getroot()
+            suites = root.findall(".//testsuite") if root.tag == "testsuites" else [root]
+            if not suites and root.tag == "testsuite":
+                suites = [root]
+
+            total = 0
+            failures = 0
+            errors = 0
+            skipped = 0
+            duration_ms = 0.0
+            test_results = []
+
+            for ts in suites:
+                total += int(ts.attrib.get("tests", 0))
+                failures += int(ts.attrib.get("failures", 0))
+                errors += int(ts.attrib.get("errors", 0))
+                skipped += int(ts.attrib.get("skipped", 0))
+                dur_s = float(ts.attrib.get("time", 0.0))
+                duration_ms += dur_s * 1000.0
+
+                for tc in ts.findall("testcase"):
+                    tc_name = tc.attrib.get("name", "unknown")
+                    tc_class = tc.attrib.get("classname", "")
+                    tc_time = float(tc.attrib.get("time", 0.0)) * 1000.0
+                    status = "passed"
+                    tb = None
+                    fail_elem = tc.find("failure")
+                    err_elem = tc.find("error")
+                    skip_elem = tc.find("skipped")
+                    if fail_elem is not None:
+                        status = "failed"
+                        tb = fail_elem.text or fail_elem.attrib.get("message", "")
+                    elif err_elem is not None:
+                        status = "error"
+                        tb = err_elem.text or err_elem.attrib.get("message", "")
+                    elif skip_elem is not None:
+                        status = "skipped"
+                        tb = skip_elem.attrib.get("message", "")
+
+                    test_results.append({
+                        "test_id": f"PY-{len(test_results)+1:03d}",
+                        "test_name": tc_name,
+                        "module": tc_class,
+                        "category": "unit",
+                        "status": status,
+                        "duration_ms": round(tc_time, 2),
+                        "traceback_str": tb,
+                    })
+
+            passed = max(0, total - failures - errors - skipped)
+            pass_rate = round(passed / max(total, 1) * 100.0, 1)
+            return {
+                "status": "DONE",
+                "total": total,
+                "passed": passed,
+                "failed": failures,
+                "errors": errors,
+                "skipped": skipped,
+                "pass_rate": pass_rate,
+                "duration_ms": round(duration_ms, 2),
+                "results": test_results,
+            }
+        except Exception:
+            return {
+                "status": "ERROR", "total": 0, "passed": 0, "failed": 0,
+                "errors": 1, "skipped": 0, "pass_rate": 0.0, "results": [],
+            }
+
     # Step 4: Test Suite Execution via subprocess (avoids polluting host process)
     def _run_tests_subprocess(paths: list[str]) -> dict:
-        """Run pytest paths in a subprocess; parse summary line for results."""
+        """Run pytest paths in an isolated subprocess with JUnit XML reporting."""
         import subprocess
-        import re as _re
+        import tempfile
 
         if not paths:
             return {"status": "NO_TESTS", "total": 0, "passed": 0, "failed": 0,
                     "errors": 0, "skipped": 0, "pass_rate": 0.0, "results": []}
+
+        tmp_dir = Path(tempfile.mkdtemp(prefix="qa_pytest_"))
+        xml_path = tmp_dir / "junit.xml"
+
         try:
             env = dict(os.environ)
             existing_pythonpath = env.get("PYTHONPATH", "")
@@ -917,40 +1000,31 @@ def analyze_and_test(
 
             proc = subprocess.run(
                 [sys.executable, "-m", "pytest"] + paths +
-                ["-v", "--tb=short", "-q", "--no-header"],
+                ["-q", f"--junitxml={xml_path}"],
                 capture_output=True, text=True, timeout=120, env=env,
             )
-            stdout = proc.stdout + proc.stderr
-            # Parse summary line e.g. "5 passed, 2 failed, 1 error in 3.45s"
-            summary_match = _re.search(
-                r"(\d+) passed(?:,\s*(\d+) failed)?(?:,\s*(\d+) error)?(?:,\s*(\d+) skipped)?",
-                stdout,
-            )
-            if summary_match:
-                passed = int(summary_match.group(1) or 0)
-                failed = int(summary_match.group(2) or 0)
-                errors = int(summary_match.group(3) or 0)
-                skipped = int(summary_match.group(4) or 0)
-            else:
-                # No passing tests found — check for failures only
-                fail_match = _re.search(r"(\d+) failed", stdout)
-                err_match = _re.search(r"(\d+) error", stdout)
-                skip_match = _re.search(r"(\d+) skipped", stdout)
-                passed = 0
-                failed = int(fail_match.group(1)) if fail_match else 0
-                errors = int(err_match.group(1)) if err_match else 0
-                skipped = int(skip_match.group(1)) if skip_match else 0
-            total = passed + failed + errors + skipped
-            pass_rate = round(passed / max(total, 1) * 100.0, 1)
+
+            if xml_path.exists():
+                report_dict = _parse_junit_xml(xml_path)
+                report_dict["stdout"] = proc.stdout
+                report_dict["stderr"] = proc.stderr
+                return report_dict
+
+            # Fallback if XML was not generated
             return {
-                "status": "TIMEOUT" if proc.returncode == -9 else "DONE",
-                "total": total, "passed": passed, "failed": failed,
-                "errors": errors, "skipped": skipped, "pass_rate": pass_rate,
-                "results": [],
+                "status": "DONE" if proc.returncode == 0 else "ERROR",
+                "total": 0, "passed": 0, "failed": 1 if proc.returncode != 0 else 0,
+                "errors": 0, "skipped": 0, "pass_rate": 0.0, "results": [],
+                "stdout": proc.stdout, "stderr": proc.stderr,
             }
         except subprocess.TimeoutExpired:
-            return {"status": "TIMEOUT", "total": 0, "passed": 0, "failed": 0,
-                    "errors": 0, "skipped": 0, "pass_rate": 0.0, "results": []}
+            return {
+                "status": "TIMEOUT", "total": 0, "passed": 0, "failed": 0,
+                "errors": 1, "skipped": 0, "pass_rate": 0.0, "results": [],
+                "note": "Execution timed out after 120 seconds",
+            }
+        finally:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
 
     if run_tests:
         # Run project's own existing tests first

@@ -153,7 +153,7 @@ _SAST_PATTERNS = [
         "pattern": r"(execute|raw)\s*\(\s*f[\"'](SELECT|INSERT|UPDATE|DELETE|DROP|ALTER).*\{",
         "title": "String Formatted SQL Query Construction",
         "description": "Constructing SQL queries via string interpolation bypasses DB parameterization and invites SQL Injection.",
-        "remediation": "Use parameterized queries or ORM query builders (e.g., cursor.execute('SELECT * FROM t WHERE id = %s', (val,))).",
+        "remediation": "Use parameterized queries or ORM query builders (e.g., cursor.execute('SELECT * FROM t WHERE id = :id', {'id': val})).",
     },
     {
         "rule_id": "SAST-SQL-002",
@@ -516,6 +516,34 @@ class SecurityScanner:
                     summary.add(finding)
 
     def _scan_requirements(self, content: str, file_path: Path, summary: SecurityScanSummary) -> None:
+        # Try dynamic pip-audit check if installed
+        pip_audit_findings = self.check_with_pip_audit(file_path)
+        if pip_audit_findings:
+            for dep in pip_audit_findings:
+                name = dep.get("name", "")
+                ver = dep.get("version", "")
+                vulns = dep.get("vulns", [])
+                for v in vulns:
+                    cve = v.get("id", "UNKNOWN-CVE")
+                    fix_versions = v.get("fix_versions", ["unknown"])
+                    safe_ver = fix_versions[0] if fix_versions else "latest"
+                    finding = SecurityFinding(
+                        finding_id=f"VULN-{len(summary.findings)+1:04d}",
+                        rule_id=f"DEP-AUDIT-{name.upper()}",
+                        cwe_id="CWE-1395",
+                        owasp_category="A06:2021-Vulnerable and Outdated Components",
+                        severity="HIGH",
+                        title=f"Vulnerable Dependency (pip-audit): {name} ({ver})",
+                        description=f"Package {name}=={ver} is vulnerable to {cve}. Safe version required >= {safe_ver}.",
+                        file_path=str(file_path),
+                        line_number=1,
+                        code_snippet=f"{name}=={ver}",
+                        remediation_guidance=f"Upgrade {name} to version {safe_ver} in requirements.txt.",
+                    )
+                    summary.add(finding)
+            return
+
+        # Fallback to offline static known CVE list and constraint checks
         for idx, line in enumerate(content.splitlines(), start=1):
             line = line.strip()
             if not line or line.startswith("#"):
@@ -718,3 +746,5 @@ if __name__ == "__main__":
         summary = scanner.scan_directory(target)
 
     print(json.dumps(summary.to_dict(), indent=2))
+    if summary.critical_count > 0 or summary.high_count > 0:
+        sys.exit(1)

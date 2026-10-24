@@ -1,6 +1,6 @@
 ### Empirical Benchmark Results
 
-The gatekeeper was rigorously evaluated across a standardized benchmark suite of 18 repositories (3 clean baseline projects and 15 containing known planted security, architectural, and reliability defects).
+The gatekeeper was rigorously evaluated across a standardized benchmark suite of 19 repositories (3 clean baseline projects and 16 containing known planted security, architectural, and reliability defects).
 
 | ID | Benchmark Target | Archetype / Flaw | Expected Gate | Actual Gate | Quality Index | Result |
 |:---|:---|:---|:---|:---|:---:|:---:|
@@ -22,8 +22,9 @@ The gatekeeper was rigorously evaluated across a standardized benchmark suite of
 | 16 | `16_vuln_dep_requests` | Planted Bug | CONDITIONAL_APPROVAL | CONDITIONAL_APPROVAL | 81.3% | PASS |
 | 17 | `17_vuln_dep_aiohttp` | Planted Bug | MARKET_BLOCKED | MARKET_BLOCKED | 73.3% | PASS |
 | 18 | `18_failing_unit_test` | Planted Bug | MARKET_BLOCKED | MARKET_BLOCKED | 65.7% | PASS |
+| 19 | `19_mixed_test_results` | Planted Bug | MARKET_BLOCKED | MARKET_BLOCKED | 90.7% | PASS |
 
 **Benchmark Performance Summary**:
-- **Defect Detection Recall**: 100.0% (15/15 planted defects caught)
+- **Defect Detection Recall**: 100.0% (16/16 planted defects caught)
 - **Clean Code Precision**: 100.0% (0 false positives on clean codebases)
-- **Overall Gate Determination Accuracy**: 100.0% (18/18 correct determinations)
+- **Overall Gate Determination Accuracy**: 100.0% (19/19 correct determinations)

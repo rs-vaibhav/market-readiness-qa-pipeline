@@ -28,4 +28,4 @@ jobs:
 
       - name: Run SAST self-scan
         run: |
-          python -m core.security_scanner . 2>&1 | tail -20
+          python -m core.security_scanner core/
