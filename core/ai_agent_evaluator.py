@@ -53,6 +53,7 @@ class RAGEvaluation:
 class EvaluationReport:
     """Complete AI evaluation output."""
     model_used: str = "mock"
+    ai_available: bool = True
     failure_analyses: list[FailureAnalysis] = field(default_factory=list)
     security_audits: list[SecurityAuditAnalysis] = field(default_factory=list)
     rag_evaluations: list[RAGEvaluation] = field(default_factory=list)
@@ -61,6 +62,7 @@ class EvaluationReport:
     def to_dict(self) -> dict:
         return {
             "model_used": self.model_used,
+            "ai_available": self.ai_available,
             "failure_analyses": [asdict(a) for a in self.failure_analyses],
             "security_audits": [asdict(s) for s in self.security_audits],
             "rag_evaluations": [asdict(e) for e in self.rag_evaluations],
@@ -92,6 +94,8 @@ class LLMClient(Protocol):
 
 class OllamaClient:
     """Calls a local Ollama instance (llama3.2, qwen2.5-coder, deepseek-r1, etc.)."""
+
+    IS_MOCK = False
 
     def __init__(
         self,
@@ -131,6 +135,8 @@ class OllamaClient:
 
 class MockLLMClient:
     """Deterministic mock client for offline verification."""
+
+    IS_MOCK = True
 
     @property
     def model_name(self) -> str:
@@ -219,6 +225,15 @@ class AgentEvaluator:
         return MockLLMClient()
 
     def analyze_failure(self, test_name: str, traceback_str: str, context: str = "") -> FailureAnalysis:
+        if getattr(self.llm, "IS_MOCK", False):
+            return FailureAnalysis(
+                test_name=test_name,
+                root_cause="AI review unavailable — Ollama offline.",
+                suggested_fix="Start Ollama and re-run for AI-assisted diagnosis.",
+                severity="medium",
+                category="logic_error",
+            )
+
         prompt = (
             f"Test `{test_name}` encountered a failure with the following traceback record:\n\n"
             f"```\n{traceback_str}\n```\n\n"
@@ -243,6 +258,17 @@ class AgentEvaluator:
 
     def audit_security_vulnerability(self, finding_dict: dict, code_context: str = "") -> SecurityAuditAnalysis:
         """Deep security reasoning on an identified vulnerability finding."""
+        if getattr(self.llm, "IS_MOCK", False):
+            return SecurityAuditAnalysis(
+                finding_id=finding_dict.get("finding_id", "VULN-0000"),
+                rule_id=finding_dict.get("rule_id", "SAST-000"),
+                cvss_score=0.0,
+                is_exploitable=False,
+                attack_vector="Static heuristic detection only.",
+                exact_remediation_diff="AI review unavailable — start Ollama to enable automated patch generation.",
+                audit_notes="AI review unavailable — Ollama offline. Static heuristic detection only.",
+            )
+
         prompt = (
             f"Audit the following security finding in the codebase:\n\n"
             f"Finding ID: {finding_dict.get('finding_id')}\n"
@@ -281,6 +307,16 @@ class AgentEvaluator:
         ground_truth: str,
         is_abstention_expected: bool = False,
     ) -> RAGEvaluation:
+        if getattr(self.llm, "IS_MOCK", False):
+            return RAGEvaluation(
+                query=query,
+                generated_answer=generated_answer,
+                ground_truth=ground_truth,
+                faithfulness_score=0.0,
+                abstention_correct=False,
+                reasoning="AI review unavailable — Ollama offline. Cannot evaluate RAG faithfulness without an active model.",
+            )
+
         prompt = (
             "Evaluate the following RAG output for faithfulness.\n\n"
             f"Query: {query}\n"
@@ -310,7 +346,11 @@ class AgentEvaluator:
         )
 
     def analyze_test_report(self, report_dict: dict) -> EvaluationReport:
-        eval_report = EvaluationReport(model_used=self.llm.model_name)
+        is_mock = getattr(self.llm, "IS_MOCK", False)
+        eval_report = EvaluationReport(
+            model_used=self.llm.model_name,
+            ai_available=not is_mock,
+        )
 
         failed = [
             r for r in report_dict.get("results", [])
@@ -326,14 +366,17 @@ class AgentEvaluator:
             eval_report.failure_analyses.append(analysis)
 
         if failed:
-            severities = [a.severity for a in eval_report.failure_analyses]
-            critical = severities.count("critical")
-            high = severities.count("high")
-            eval_report.overall_summary = (
-                f"Evaluated {len(failed)} defect(s): "
-                f"{critical} critical severity, {high} high severity. "
-                f"{'Deployment gate blocked due to identified critical severity defects.' if critical else 'Review and remediation recommended prior to sign-off.'}"
-            )
+            if is_mock:
+                eval_report.overall_summary = f"{len(failed)} defect(s) detected. AI review unavailable — Ollama offline."
+            else:
+                severities = [a.severity for a in eval_report.failure_analyses]
+                critical = severities.count("critical")
+                high = severities.count("high")
+                eval_report.overall_summary = (
+                    f"Evaluated {len(failed)} defect(s): "
+                    f"{critical} critical severity, {high} high severity. "
+                    f"{'Deployment gate blocked due to identified critical severity defects.' if critical else 'Review and remediation recommended prior to sign-off.'}"
+                )
         else:
             eval_report.overall_summary = "All verification test cases passed successfully. Zero defects identified."
 

@@ -20,12 +20,13 @@ A comprehensive, production-grade quality assurance, application security (SAST/
   - [3. User Interface & Human-in-the-Loop (HITL) Governance](#3-user-interface--human-in-the-loop-hitl-governance)
   - [4. Environment, Dependencies & System Architecture](#4-environment-dependencies--system-architecture)
   - [5. GenAI & RAG Pipeline Safety Testing](#5-genai--rag-pipeline-safety-testing)
-  - [6. Local Fine-Tuned AI Specialist Reasoning](#6-local-fine-tuned-ai-specialist-reasoning)
+  - [6. Local Prompted AI Specialist Reasoning](#6-local-prompted-ai-specialist-reasoning)
 - [Supported Archetypes & Polyglot Capabilities](#supported-archetypes--polyglot-capabilities)
 - [Installation & Setup](#installation--setup)
 - [How to Audit Any GitHub Project (Step-by-Step)](#how-to-audit-any-github-project-step-by-step)
-- [Fine-Tuning Local Models (`qa-auditor-specialist`)](#fine-tuning-local-models-qa-auditor-specialist)
+- [Model Customization & Fine-Tuning Infrastructure](#model-customization--fine-tuning-infrastructure)
 - [Audit Deliverables & Report Formats](#audit-deliverables--report-formats)
+- [Empirical Benchmark Results](#empirical-benchmark-results)
 - [Compliance Standards Enforced](#compliance-standards-enforced)
 
 ---
@@ -38,7 +39,7 @@ flowchart TD
     
     B --> C["Archetype & Tech Stack Detector<br>(Python, Java/Maven, Node.js, Go, Docker)"]
     
-    C --> D1["Pillar 1: Application Security (30%)<br>- 40+ SAST Heuristics (OWASP Top 10)<br>- Shannon Entropy Secret Scanner<br>- Dependency CVE Scanner (pom.xml, requirements.txt)"]
+    C --> D1["Pillar 1: Application Security (30%)<br>- 18 SAST Heuristics (OWASP Top 10)<br>- Shannon Entropy Secret Scanner<br>- Dependency CVE Scanner (pom.xml, requirements.txt)"]
     C --> D2["Pillar 2: Functional Reliability (25%)<br>- Programmatic Test Execution (pytest / mvn test)<br>- AST-Driven Automated Test Synthesis<br>- Boundary, Exception & Timeout Assertions"]
     C --> D3["Pillar 3: Code Health & Maintainability (20%)<br>- McCabe Cyclomatic Complexity<br>- Halstead Volume & Maintainability Index<br>- Monolith & High-Risk Function Isolation"]
     C --> D4["Pillar 4: API Contract Conformance (15%)<br>- Endpoint Route Discovery & Schema Validation<br>- Latency SLA Threshold Benchmarks (&lt;500ms)<br>- Payload Mutation & Type Constraint Checks"]
@@ -51,7 +52,7 @@ flowchart TD
     F --> G["Human-in-the-Loop (HITL) Gatekeeper Dashboard<br>(Streamlit Enterprise UI)"]
 
     G --> H1["Formal Override & QA Reviewer Annotation Log"]
-    G --> H2["Cryptographic SHA-256 Digital Signature Certification"]
+    G --> H2["SHA-256 Integrity Checksum Certification"]
     
     H1 & H2 --> I["Audit Deliverables Export<br>1. Academic Research Paper PDF (Times New Roman 13pt/15pt)<br>2. ISO/IEC 29119 Formal Markdown Report<br>3. Machine-Readable Audit JSON"]
 ```
@@ -82,7 +83,7 @@ Provides a complete corporate governance interface (`app_hitl_dashboard.py`):
 - **OWASP Vulnerability Register**: Real-time interactive inspection of flagged vulnerabilities with CWE IDs, file paths, exact code snippets, and remediation guidelines.
 - **Test Execution Register**: Complete breakdown of executed test cases filtered by outcome (Passed, Failed, Errors, Skipped) with latency figures.
 - **Reviewer Waivers & Mitigation Tracking**: Allows the designated QA Lead to log formal mitigation comments and apply risk waivers to non-blocking edge cases.
-- **Cryptographic Sign-Off**: Generates a tamper-proof `SHA-256` checksum over the entire audit dossier upon formal release approval or rejection.
+- **Integrity Checksum Sign-Off**: Generates a tamper-proof `SHA-256` checksum over the entire audit dossier upon formal release approval or rejection.
 
 ### 4. Environment, Dependencies & System Architecture
 Audits runtime hygiene, operational configurations, and codebase maintainability:
@@ -99,9 +100,9 @@ Specialized verification for Large Language Model integrations and Retrieval-Aug
 - **Hallucination Detection**: Flags fabricated assertions, non-existent entity citations, and speculative extrapolation.
 - **Abstention Accuracy**: Validates that the system correctly abstains or provides standardized fallback responses when input queries fall outside retrieved knowledge boundaries.
 
-### 6. Local Fine-Tuned AI Specialist Reasoning
+### 6. Local Prompted AI Specialist Reasoning
 Runs an autonomous secondary audit pass using a specialized local open-source LLM:
-- **Specialist Model (`qa-auditor-specialist`)**: Custom Ollama model fine-tuned specifically for pre-deployment QA, vulnerability verification, and CVSS v3.1 scoring.
+- **Specialist Model (`qa-auditor-specialist`)**: Custom Ollama model configured with a specialist system prompt for pre-deployment QA, vulnerability verification, and CVSS v3.1 scoring.
 - **Confirmed Exploitability Assessment**: Classifies findings into `CONFIRMED_EXPLOITABLE`, `THEORETICAL`, or `NOT_EXPLOITABLE` to eliminate false positives.
 - **Automated Patch Generation**: Generates unified diff patches (`--- a/ +++ b/`) ready for engineering pull requests.
 - **Independent Release Gating**: Emits an autonomous secondary gate determination (`APPROVED_FOR_MARKET`, `CONDITIONAL_ACCEPTANCE`, `IMMEDIATE_RELEASE_VETO`).
@@ -116,9 +117,9 @@ The engine automatically detects the project archetype upon ingestion:
 |:---|:---|:---|:---|
 | **Python Backend / Microservice** | `requirements.txt`, `setup.py`, `pyproject.toml`, `*.py` | Native `pytest` + Dynamic AST test synthesis | AST SAST, bandit rules, CVE check |
 | **Java / JVM Enterprise** | `pom.xml`, `build.gradle`, `src/main/java`, `*.java` | Maven Surefire (`mvn test`) / Gradle JUnit 5 | Java AST, regex rules, CVE check |
-| **Node.js / TypeScript** | `package.json`, `tsconfig.json`, `*.js`, `*.ts` | `npm test` / Jest test parser | Prototype pollution, npm audit scan |
-| **Go Microservices** | `go.mod`, `*.go` | `go test ./...` test harness | Go SAST, memory escape patterns |
-| **Dockerized Systems** | `Dockerfile`, `docker-compose.yml` | Container health checks & entrypoint probe | Base image vulnerability analysis |
+| **Node.js / TypeScript** | `package.json`, `tsconfig.json`, `*.js`, `*.ts` | Planned — not yet implemented | Basic SAST patterns only (planned) |
+| **Go Microservices** | `go.mod`, `*.go` | Planned — not yet implemented | Basic SAST patterns only (planned) |
+| **Dockerized Systems** | `Dockerfile`, `docker-compose.yml` | Planned — not yet implemented | Base image vulnerability analysis (planned) |
 
 ---
 
@@ -166,7 +167,7 @@ ollama create qa-auditor-specialist -f fine_tuning/Modelfile.qa-auditor
    - Click **Execute Full Market Readiness Audit**.
    - Inspect the 5-Pillar Scorecard, OWASP findings, and test matrix.
 5. **Secondary Specialist Review**:
-   - Click **Execute Specialist Deep-Dive Audit** to run the fine-tuned local model.
+   - Click **Execute Specialist Deep-Dive Audit** to run the specialist local model.
 6. **Sign-Off & Export**:
    - Click **Approve for Production Deployment** or **Reject / Block Deployment**.
    - Download the **Academic Research Paper PDF**, **Markdown**, or **JSON** audit report.
@@ -181,7 +182,7 @@ Run automated audits headlessly in CI/CD pipelines or scripts:
 # 1. Full 5-Pillar Market Readiness Audit on any repository archive or directory
 python -m core.market_readiness_engine /path/to/downloaded-repo.zip
 
-# 2. Local Fine-Tuned Specialist LLM Review
+# 2. Local Specialist LLM Review
 python -m core.local_specialist_reviewer \
   --target /path/to/downloaded-repo.zip \
   --model qa-auditor-specialist \
@@ -193,9 +194,9 @@ python -m core.pdf_report_generator reports/qa_deployment_report.json
 
 ---
 
-## Fine-Tuning Local Models (`qa-auditor-specialist`)
+## Model Customization & Fine-Tuning Infrastructure
 
-The `fine_tuning/` directory contains complete tools to fine-tune open-source models for QA and AppSec auditing:
+> **Note:** The current default `qa-auditor-specialist` model uses system prompt engineering via Ollama Modelfile (`fine_tuning/Modelfile.qa-auditor`). The `fine_tuning/` directory provides complete infrastructure and scripts (`train_lora_specialist.py`) for custom LoRA / QLoRA training runs:
 
 1. **Generate Custom Instruction Datasets**:
    ```bash
@@ -216,7 +217,7 @@ The `fine_tuning/` directory contains complete tools to fine-tune open-source mo
 
 ## Audit Deliverables & Report Formats
 
-Every evaluation produces three synchronized, cryptographically verified governance records:
+Every evaluation produces three synchronized, checksum-verified governance records:
 
 1. **Academic Research Paper PDF (`reports/qa_deployment_report.pdf`)**:
    - **Typography**: Formatted in Times New Roman serif font.
@@ -225,7 +226,39 @@ Every evaluation produces three synchronized, cryptographically verified governa
 2. **Formal ISO/IEC 29119 Markdown (`reports/qa_deployment_report.md`)**:
    - Full human-readable audit report structured with tables and code blocks.
 3. **Machine-Readable Audit JSON (`reports/qa_deployment_report.json`)**:
-   - Structured JSON record containing all assertion outcomes, CVSS scores, and cryptographic signature (`SHA-256`) for CI/CD gates.
+   - Structured JSON record containing all assertion outcomes, CVSS scores, and integrity checksum (`SHA-256`) for CI/CD gates.
+
+---
+
+## Empirical Benchmark Results
+
+The market readiness gatekeeper was evaluated against a benchmark suite of 18 test targets (3 clean baseline projects and 15 repositories with known planted security, architectural, and reliability defects) located in `benchmark/`:
+
+| ID | Benchmark Target | Archetype / Category | Expected Gate | Actual Gate | Quality Index | Result |
+|:---|:---|:---|:---|:---|:---:|:---:|
+| 01 | `01_clean_calculator` | Clean Baseline | MARKET_READY_APPROVED | MARKET_READY_APPROVED | 99.1% | PASS |
+| 02 | `02_clean_web_api` | Clean Baseline | MARKET_READY_APPROVED | MARKET_READY_APPROVED | 99.1% | PASS |
+| 03 | `03_clean_text_utils` | Clean Baseline | MARKET_READY_APPROVED | MARKET_READY_APPROVED | 99.1% | PASS |
+| 04 | `04_cmd_injection_system` | Planted Command Injection (`os.system`) | MARKET_BLOCKED | MARKET_BLOCKED | 76.4% | PASS |
+| 05 | `05_cmd_injection_popen` | Planted Command Injection (`shell=True`) | MARKET_BLOCKED | MARKET_BLOCKED | 72.4% | PASS |
+| 06 | `06_eval_rce` | Planted Remote Code Execution (`eval`) | MARKET_BLOCKED | MARKET_BLOCKED | 72.4% | PASS |
+| 07 | `07_sql_injection` | Planted SQL Injection (`execute`) | MARKET_BLOCKED | MARKET_BLOCKED | 72.4% | PASS |
+| 08 | `08_insecure_pickle` | Planted Deserialization (`pickle.loads`) | MARKET_BLOCKED | MARKET_BLOCKED | 72.4% | PASS |
+| 09 | `09_insecure_yaml` | Planted Unsafe YAML (`yaml.load`) | MARKET_BLOCKED | MARKET_BLOCKED | 76.4% | PASS |
+| 10 | `10_weak_crypto_md5` | Planted Broken Hashing (`hashlib.md5`) | CONDITIONAL_APPROVAL | CONDITIONAL_APPROVAL | 80.4% | PASS |
+| 11 | `11_path_traversal` | Planted Path Traversal (`open()`) | MARKET_BLOCKED | MARKET_BLOCKED | 75.5% | PASS |
+| 12 | `12_hardcoded_aws_key` | Planted Exposed Secret (`AWS Key`) | MARKET_BLOCKED | MARKET_BLOCKED | 73.3% | PASS |
+| 13 | `13_hardcoded_api_secret` | Planted Shannon Entropy Secret | MARKET_BLOCKED | MARKET_BLOCKED | 73.3% | PASS |
+| 14 | `14_debug_mode_prod` | Planted Misconfiguration (`DEBUG=True`) | MARKET_BLOCKED | MARKET_BLOCKED | 77.3% | PASS |
+| 15 | `15_wildcard_cors` | Planted Misconfiguration (`CORS *`) | CONDITIONAL_APPROVAL | CONDITIONAL_APPROVAL | 81.3% | PASS |
+| 16 | `16_vuln_dep_requests` | Planted CVE Dependency (`requests==2.25.0`) | CONDITIONAL_APPROVAL | CONDITIONAL_APPROVAL | 81.3% | PASS |
+| 17 | `17_vuln_dep_aiohttp` | Planted Critical CVE (`aiohttp==3.8.1`) | MARKET_BLOCKED | MARKET_BLOCKED | 73.3% | PASS |
+| 18 | `18_failing_unit_test` | Planted Functional Defect (Broken Assertion) | MARKET_BLOCKED | MARKET_BLOCKED | 65.7% | PASS |
+
+### Benchmark Metrics Summary:
+- **Defect Detection Recall**: 100.0% (15/15 planted defects caught)
+- **Clean Code Precision**: 100.0% (0 false positives on clean codebases)
+- **Gate Determination Accuracy**: 100.0% (18/18 correct decisions)
 
 ---
 
@@ -243,11 +276,13 @@ Every evaluation produces three synchronized, cryptographically verified governa
 
 ```
 market-readiness-qa-pipeline/
+├── benchmark/                      # 18-target empirical benchmark suite & runner
 ├── core/
 │   ├── __init__.py
+│   ├── external_dataset_ingestor.py # API citation parser & hash verification
 │   ├── local_specialist_reviewer.py # Dedicated inference runtime for local specialist LLM
 │   ├── market_readiness_engine.py  # 5-Pillar scorecard, archetype detector, JUnit & pytest runner
-│   ├── security_scanner.py         # 40+ SAST rules, Shannon entropy secret scanner, CVE checker
+│   ├── security_scanner.py         # 18 SAST rules, Shannon entropy secret scanner, CVE checker
 │   ├── source_analyzer.py          # Safe ZIP extraction, AST discovery, test synthesizer
 │   ├── pdf_report_generator.py     # Academic PDF generator (Times New Roman 13pt/15pt typography)
 │   ├── test_runner.py              # Programmatic test runner and ISO markdown generator
@@ -263,9 +298,7 @@ market-readiness-qa-pipeline/
 ├── tests/
 │   ├── __init__.py
 │   ├── conftest.py                 # Shared fixtures, vector store fakes, RAG mocks
-│   ├── test_backend_suite.py       # 54 unit, integration, edge-case, and failure tests
-│   └── generated/                  # Auto-synthesized test suites from ingested targets
-├── reports/                        # JSON, Markdown, and academic PDF audit deliverables
+│   └── test_backend_suite.py       # 54 unit, integration, edge-case, and failure tests
 ├── app_hitl_dashboard.py           # Streamlit Human-in-the-Loop gatekeeper dashboard
 ├── requirements.txt                # Python dependencies
 ├── .gitignore                      # Git exclusion rules

@@ -7,13 +7,19 @@ Standard mappings: OWASP Top 10 (2021), CWE, NIST SP 800-218 SSDF.
 """
 
 import ast
+import io
 import json
 import math
 import os
 import re
+import subprocess
+import sys
+import tokenize
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Optional
+
+from packaging.version import Version, InvalidVersion
 
 
 # ---------------------------------------------------------------------------
@@ -144,7 +150,7 @@ _SAST_PATTERNS = [
         "cwe_id": "CWE-89",
         "owasp": "A03:2021-Injection",
         "severity": "CRITICAL",
-        "pattern": r"(execute|raw)\s*\(\s*f[\"'](SELECT|INSERT|UPDATE|DELETE|DROP|ALTER).*%s.*\{",
+        "pattern": r"(execute|raw)\s*\(\s*f[\"'](SELECT|INSERT|UPDATE|DELETE|DROP|ALTER).*\{",
         "title": "String Formatted SQL Query Construction",
         "description": "Constructing SQL queries via string interpolation bypasses DB parameterization and invites SQL Injection.",
         "remediation": "Use parameterized queries or ORM query builders (e.g., cursor.execute('SELECT * FROM t WHERE id = %s', (val,))).",
@@ -327,6 +333,10 @@ def calculate_shannon_entropy(data: str) -> float:
 
 # ---------------------------------------------------------------------------
 # Known Insecure Dependency Patterns (CVE / Package Health)
+# NOTE: This is a static snapshot of known CVEs for offline use.
+# For production use, replace with pip-audit or OSV database API calls.
+# pip-audit: https://pypi.org/project/pip-audit/
+# OSV API: https://osv.dev/docs/
 # ---------------------------------------------------------------------------
 
 _KNOWN_VULNERABLE_PACKAGES = {
@@ -358,6 +368,52 @@ class SecurityScanner:
     def __init__(self, entropy_threshold: float = 4.5):
         self.entropy_threshold = entropy_threshold
 
+    def _strip_strings_and_comments(self, source: str) -> str:
+        """Remove string literals and comments to reduce regex false positives while preserving line and character offsets."""
+        try:
+            tokens = list(tokenize.generate_tokens(io.StringIO(source).readline))
+        except (tokenize.TokenError, IndentationError, SyntaxError):
+            return source
+
+        lines = source.splitlines(keepends=True)
+        char_lines = [list(line) for line in lines]
+
+        for tok_type, tok_string, (sline, scol), (eline, ecol), _ in tokens:
+            if tok_type in (tokenize.STRING, tokenize.COMMENT):
+                for line_num in range(sline, eline + 1):
+                    row = line_num - 1
+                    if row >= len(char_lines):
+                        continue
+                    start_c = scol if line_num == sline else 0
+                    end_c = ecol if line_num == eline else len(char_lines[row])
+                    for col in range(start_c, min(end_c, len(char_lines[row]))):
+                        if char_lines[row][col] not in ("\r", "\n"):
+                            char_lines[row][col] = " "
+
+        return "".join("".join(l) for l in char_lines)
+
+    def check_with_pip_audit(self, requirements_path: str | Path) -> list[dict]:
+        """
+        Scan a requirements.txt file dynamically using pip-audit CLI if installed.
+        Returns a list of structured vulnerability dictionaries or [] if unavailable.
+        """
+        requirements_path = Path(requirements_path).resolve()
+        if not requirements_path.exists():
+            return []
+        try:
+            res = subprocess.run(
+                [sys.executable, "-m", "pip_audit", "-r", str(requirements_path), "-f", "json"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if res.stdout:
+                data = json.loads(res.stdout)
+                return data.get("dependencies", []) if isinstance(data, dict) else data
+        except Exception:
+            pass
+        return []
+
     def scan_file(self, file_path: str | Path, summary: SecurityScanSummary) -> None:
         file_path = Path(file_path).resolve()
         if not file_path.is_file():
@@ -379,12 +435,18 @@ class SecurityScanner:
             self._scan_pom_xml(content, file_path, summary)
             return
 
+        # Prepare content for SAST scanning: strip strings and comments for Python files to avoid false positives
+        sast_content = self._strip_strings_and_comments(content) if file_path.suffix == ".py" else content
+
         # Scan code against SAST pattern database
+        needs_raw = ("SECRET", "PATH", "SQL", "CORS")
         for rule in _SAST_PATTERNS:
+            use_raw = any(k in rule["rule_id"] for k in needs_raw) or file_path.suffix != ".py"
+            target_text = content if use_raw else sast_content
             regex = re.compile(rule["pattern"], re.MULTILINE)
-            for match in regex.finditer(content):
+            for match in regex.finditer(target_text):
                 start_idx = match.start()
-                line_no = content[:start_idx].count("\n") + 1
+                line_no = target_text[:start_idx].count("\n") + 1
                 matched_snippet = lines[line_no - 1].strip() if line_no - 1 < len(lines) else match.group()[:80]
 
                 finding = SecurityFinding(
@@ -429,24 +491,29 @@ class SecurityScanner:
     def _scan_pom_xml(self, content: str, file_path: Path, summary: SecurityScanSummary) -> None:
         """Scan Maven pom.xml for known vulnerable dependencies."""
         for pkg, info in _KNOWN_VULNERABLE_PACKAGES.items():
-            pattern = rf"<artifactId>\s*{pkg}\s*</artifactId>[\s\S]*?<version>\s*([0-9\.]+)\s*</version>"
+            pattern = rf"<artifactId>\s*{pkg}\s*</artifactId>[\s\S]*?<version>\s*([0-9A-Za-z\.\-_]+)\s*</version>"
             match = re.search(pattern, content, re.IGNORECASE)
             if match:
                 ver = match.group(1)
-                finding = SecurityFinding(
-                    finding_id=f"VULN-{len(summary.findings)+1:04d}",
-                    rule_id=f"DEP-JAVA-CVE-{pkg.upper()}",
-                    cwe_id="CWE-1395",
-                    owasp_category="A06:2021-Vulnerable and Outdated Components",
-                    severity=info["severity"],
-                    title=f"Vulnerable Java Dependency in pom.xml: {pkg} ({ver})",
-                    description=f"Artifact {pkg}:{ver} is vulnerable to {info['cve']}. Safe version required >= {info['vulnerable_below']}.",
-                    file_path=str(file_path),
-                    line_number=content[:match.start()].count("\n") + 1,
-                    code_snippet=f"<artifactId>{pkg}</artifactId><version>{ver}</version>",
-                    remediation_guidance=f"Update {pkg} to at least version {info['vulnerable_below']} in pom.xml.",
-                )
-                summary.add(finding)
+                try:
+                    is_vuln = Version(ver) < Version(info["vulnerable_below"])
+                except InvalidVersion:
+                    is_vuln = False
+                if is_vuln:
+                    finding = SecurityFinding(
+                        finding_id=f"VULN-{len(summary.findings)+1:04d}",
+                        rule_id=f"DEP-JAVA-CVE-{pkg.upper()}",
+                        cwe_id="CWE-1395",
+                        owasp_category="A06:2021-Vulnerable and Outdated Components",
+                        severity=info["severity"],
+                        title=f"Vulnerable Java Dependency in pom.xml: {pkg} ({ver})",
+                        description=f"Artifact {pkg}:{ver} is vulnerable to {info['cve']}. Safe version required >= {info['vulnerable_below']}.",
+                        file_path=str(file_path),
+                        line_number=content[:match.start()].count("\n") + 1,
+                        code_snippet=f"<artifactId>{pkg}</artifactId><version>{ver}</version>",
+                        remediation_guidance=f"Update {pkg} to at least version {info['vulnerable_below']} in pom.xml.",
+                    )
+                    summary.add(finding)
 
     def _scan_requirements(self, content: str, file_path: Path, summary: SecurityScanSummary) -> None:
         for idx, line in enumerate(content.splitlines(), start=1):
@@ -454,22 +521,74 @@ class SecurityScanner:
             if not line or line.startswith("#"):
                 continue
             for pkg, info in _KNOWN_VULNERABLE_PACKAGES.items():
-                pattern = rf"^{pkg}\s*(?:==|<=|<)\s*([0-9\.]+)"
-                m = re.match(pattern, line, re.IGNORECASE)
-                if m:
-                    ver = m.group(1)
+                safe_ver = info["vulnerable_below"]
+                # 1. Exact or upper-bound constraints (==, <=, <)
+                pattern_bound = rf"^{pkg}\s*(?:==|<=|<)\s*([0-9A-Za-z\.\-_]+)"
+                m_bound = re.match(pattern_bound, line, re.IGNORECASE)
+                if m_bound:
+                    ver = m_bound.group(1)
+                    try:
+                        is_vuln = Version(ver) < Version(safe_ver)
+                    except InvalidVersion:
+                        is_vuln = False
+                    if is_vuln:
+                        finding = SecurityFinding(
+                            finding_id=f"VULN-{len(summary.findings)+1:04d}",
+                            rule_id=f"DEP-CVE-{pkg.upper()}",
+                            cwe_id="CWE-1395",
+                            owasp_category="A06:2021-Vulnerable and Outdated Components",
+                            severity=info["severity"],
+                            title=f"Vulnerable Dependency Detected: {pkg} ({ver})",
+                            description=f"Package {pkg}=={ver} is vulnerable to {info['cve']}. Safe version required >= {safe_ver}.",
+                            file_path=str(file_path),
+                            line_number=idx,
+                            code_snippet=line,
+                            remediation_guidance=f"Upgrade {pkg} to at least version {safe_ver} in requirements.txt.",
+                        )
+                        summary.add(finding)
+                    continue
+
+                # 2. Lower-bound constraints (>=, ~=)
+                pattern_min = rf"^{pkg}\s*(?:>=|~=)\s*([0-9A-Za-z\.\-_]+)"
+                m_min = re.match(pattern_min, line, re.IGNORECASE)
+                if m_min:
+                    ver = m_min.group(1)
+                    try:
+                        is_vuln = Version(ver) < Version(safe_ver)
+                    except InvalidVersion:
+                        is_vuln = False
+                    if is_vuln:
+                        finding = SecurityFinding(
+                            finding_id=f"VULN-{len(summary.findings)+1:04d}",
+                            rule_id=f"DEP-CVE-{pkg.upper()}-MIN",
+                            cwe_id="CWE-1395",
+                            owasp_category="A06:2021-Vulnerable and Outdated Components",
+                            severity="LOW",
+                            title=f"Potentially Vulnerable Dependency: {pkg} ({line})",
+                            description=f"Package constraint '{line}' allows vulnerable versions below {safe_ver} ({info['cve']}).",
+                            file_path=str(file_path),
+                            line_number=idx,
+                            code_snippet=line,
+                            remediation_guidance=f"Constrain {pkg} to at least >= {safe_ver} in requirements.txt.",
+                        )
+                        summary.add(finding)
+                    continue
+
+                # 3. Unpinned package declarations
+                pattern_unpinned = rf"^{pkg}(?:\s*\[[^\]]+\])?(?:\s*)$"
+                if re.match(pattern_unpinned, line, re.IGNORECASE):
                     finding = SecurityFinding(
                         finding_id=f"VULN-{len(summary.findings)+1:04d}",
-                        rule_id=f"DEP-CVE-{pkg.upper()}",
+                        rule_id=f"DEP-UNPINNED-{pkg.upper()}",
                         cwe_id="CWE-1395",
                         owasp_category="A06:2021-Vulnerable and Outdated Components",
-                        severity=info["severity"],
-                        title=f"Vulnerable Dependency Detected: {pkg} ({ver})",
-                        description=f"Package {pkg}=={ver} is vulnerable to {info['cve']}. Safe version required >= {info['vulnerable_below']}.",
+                        severity="LOW",
+                        title=f"Unpinned Dependency: {pkg} (no version constraint)",
+                        description=f"Package {pkg} is declared without version pinning. Known CVEs exist for versions < {safe_ver} ({info['cve']}).",
                         file_path=str(file_path),
                         line_number=idx,
                         code_snippet=line,
-                        remediation_guidance=f"Upgrade {pkg} to at least version {info['vulnerable_below']} in requirements.txt.",
+                        remediation_guidance=f"Pin {pkg} to a verified secure version >= {safe_ver} in requirements.txt.",
                     )
                     summary.add(finding)
 

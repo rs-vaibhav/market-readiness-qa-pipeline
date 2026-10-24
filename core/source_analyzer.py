@@ -137,9 +137,18 @@ def safe_extract_zip(zip_path: str | Path, target_dir: str | Path) -> Path:
     target_dir.mkdir(parents=True, exist_ok=True)
 
     with zipfile.ZipFile(zip_path, "r") as archive:
+        # Check max unzipped size before extraction
+        MAX_UNZIPPED_BYTES = 500 * 1024 * 1024  # 500 MB
+        total_size = sum(m.file_size for m in archive.infolist())
+        if total_size > MAX_UNZIPPED_BYTES:
+            raise ValueError(
+                f"Archive exceeds maximum allowed unzipped size of 500 MB "
+                f"({total_size / 1024 / 1024:.1f} MB)."
+            )
+
         for member in archive.infolist():
             dest_path = (target_dir / member.filename).resolve()
-            if not str(dest_path).startswith(str(target_dir)):
+            if not dest_path.is_relative_to(target_dir):
                 raise ValueError(
                     f"Security violation: Archive member '{member.filename}' attempts path traversal."
                 )
@@ -581,8 +590,10 @@ def test_{func.name}_nominal_call(self):
         pytest.skip("Target module unimportable")
     try:
         result = {func.name}({valid_args})
-    except Exception as exc:
-        assert isinstance(exc, Exception)
+    except (TypeError, ValueError):
+        pass  # type contract violations are acceptable
+    except Exception:
+        raise  # real failures must surface
 '''))
         else:
             lines.append(self._indent(f'''
@@ -593,8 +604,10 @@ async def test_{func.name}_nominal_call(self):
         pytest.skip("Target module unimportable")
     try:
         result = await {func.name}({valid_args})
-    except Exception as exc:
-        assert isinstance(exc, Exception)
+    except (TypeError, ValueError):
+        pass  # type contract violations are acceptable
+    except Exception:
+        raise  # real failures must surface
 '''))
 
         if func.return_annotation and func.return_annotation not in ("None", ""):
@@ -606,7 +619,7 @@ def test_{func.name}_return_type_validation(self):
     try:
         result = {func.name}({valid_args})
         assert result is not None or True
-    except Exception:
+    except (TypeError, ValueError):
         pass
 '''))
 
@@ -620,8 +633,6 @@ def test_{func.name}_null_safety_boundary(self):
     try:
         result = {func.name}({none_args})
     except (TypeError, ValueError, AttributeError, KeyError):
-        pass
-    except Exception:
         pass
 '''))
 
@@ -647,8 +658,10 @@ def test_{func.name}_boundary_{first_param.name}(self, {first_param.name}_val):
         pytest.skip("Target module unimportable")
     try:
         result = {func.name}({first_param.name}_val)
+    except (TypeError, ValueError):
+        pass  # type contract violations are acceptable
     except Exception:
-        pass
+        raise  # real failures must surface
 '''))
 
         return "\n".join(lines)
@@ -678,8 +691,10 @@ def test_{cls.name.lower()}_initialization(self):
     try:
         instance = {cls.name}({init_args})
         assert instance is not None
-    except Exception as exc:
-        assert isinstance(exc, Exception)
+    except (TypeError, ValueError):
+        pass  # type contract violations are acceptable
+    except Exception:
+        raise  # real failures must surface
 '''))
 
         for method in cls.methods:
@@ -701,8 +716,10 @@ def test_{cls.name.lower()}_{method.name}_property(self):
     try:
         obj = {cls.name}({init_args})
         val = obj.{method.name}
-    except Exception:
+    except (TypeError, ValueError):
         pass
+    except Exception:
+        raise
 '''))
             elif not method.is_async:
                 lines.append(self._indent(f'''
@@ -713,8 +730,10 @@ def test_{cls.name.lower()}_{method.name}_invocation(self):
     try:
         obj = {cls.name}({init_args})
         result = obj.{method.name}({method_args})
+    except (TypeError, ValueError):
+        pass  # type contract violations are acceptable
     except Exception:
-        pass
+        raise  # real failures must surface
 '''))
             else:
                 lines.append(self._indent(f'''
@@ -726,8 +745,10 @@ async def test_{cls.name.lower()}_{method.name}_invocation(self):
     try:
         obj = {cls.name}({init_args})
         result = await obj.{method.name}({method_args})
+    except (TypeError, ValueError):
+        pass  # type contract violations are acceptable
     except Exception:
-        pass
+        raise  # real failures must surface
 '''))
 
         return "\n".join(lines)
@@ -791,6 +812,7 @@ def analyze_and_test(
     source_path: str | Path,
     output_dir: str | Path | None = None,
     run_tests: bool = True,
+    modify_sys_path: bool = False,
 ) -> dict[str, Any]:
     """
     Unified verification pipeline:
@@ -835,10 +857,11 @@ def analyze_and_test(
         extra_sys_paths = [str(source_path.parent)]
         target_files = [source_path]
 
-    # Ensure search paths are in Python's active sys.path
-    for p in extra_sys_paths:
-        if p not in sys.path:
-            sys.path.insert(0, p)
+    # Ensure search paths are in Python's active sys.path (only if explicitly requested)
+    if modify_sys_path:
+        for p in extra_sys_paths:
+            if p not in sys.path:
+                sys.path.insert(0, p)
 
     # Step 2: AST Source Analysis
     analyzer = SourceFileAnalyzer()
@@ -857,6 +880,8 @@ def analyze_and_test(
         "generated_tests": [],
         "existing_tests": existing_tests,
         "test_report": None,
+        "project_test_report": None,
+        "generated_test_report": None,
         "evaluation": None,
     }
 
@@ -873,21 +898,85 @@ def analyze_and_test(
         generated_paths.append(str(out_path))
         results["generated_tests"].append(str(out_path))
 
-    # Step 4: Test Suite Execution
-    all_test_paths = existing_tests + generated_paths
-    if run_tests and all_test_paths:
-        from core.test_runner import run_pytest_suite
-        report = run_pytest_suite(
-            paths=all_test_paths,
-            extra_args=["-v", "--tb=short", "-q", "--no-header"],
-        )
-        results["test_report"] = report.to_dict()
+    # Step 4: Test Suite Execution via subprocess (avoids polluting host process)
+    def _run_tests_subprocess(paths: list[str]) -> dict:
+        """Run pytest paths in a subprocess; parse summary line for results."""
+        import subprocess
+        import re as _re
 
-        # Step 5: AI Failure Analysis & Root Cause Evaluation
-        if report.failed > 0 or report.errors > 0:
+        if not paths:
+            return {"status": "NO_TESTS", "total": 0, "passed": 0, "failed": 0,
+                    "errors": 0, "skipped": 0, "pass_rate": 0.0, "results": []}
+        try:
+            env = dict(os.environ)
+            existing_pythonpath = env.get("PYTHONPATH", "")
+            all_paths = [p for p in extra_sys_paths if p]
+            if existing_pythonpath:
+                all_paths.append(existing_pythonpath)
+            env["PYTHONPATH"] = os.pathsep.join(all_paths)
+
+            proc = subprocess.run(
+                [sys.executable, "-m", "pytest"] + paths +
+                ["-v", "--tb=short", "-q", "--no-header"],
+                capture_output=True, text=True, timeout=120, env=env,
+            )
+            stdout = proc.stdout + proc.stderr
+            # Parse summary line e.g. "5 passed, 2 failed, 1 error in 3.45s"
+            summary_match = _re.search(
+                r"(\d+) passed(?:,\s*(\d+) failed)?(?:,\s*(\d+) error)?(?:,\s*(\d+) skipped)?",
+                stdout,
+            )
+            if summary_match:
+                passed = int(summary_match.group(1) or 0)
+                failed = int(summary_match.group(2) or 0)
+                errors = int(summary_match.group(3) or 0)
+                skipped = int(summary_match.group(4) or 0)
+            else:
+                # No passing tests found — check for failures only
+                fail_match = _re.search(r"(\d+) failed", stdout)
+                err_match = _re.search(r"(\d+) error", stdout)
+                skip_match = _re.search(r"(\d+) skipped", stdout)
+                passed = 0
+                failed = int(fail_match.group(1)) if fail_match else 0
+                errors = int(err_match.group(1)) if err_match else 0
+                skipped = int(skip_match.group(1)) if skip_match else 0
+            total = passed + failed + errors + skipped
+            pass_rate = round(passed / max(total, 1) * 100.0, 1)
+            return {
+                "status": "TIMEOUT" if proc.returncode == -9 else "DONE",
+                "total": total, "passed": passed, "failed": failed,
+                "errors": errors, "skipped": skipped, "pass_rate": pass_rate,
+                "results": [],
+            }
+        except subprocess.TimeoutExpired:
+            return {"status": "TIMEOUT", "total": 0, "passed": 0, "failed": 0,
+                    "errors": 0, "skipped": 0, "pass_rate": 0.0, "results": []}
+
+    if run_tests:
+        # Run project's own existing tests first
+        if existing_tests:
+            project_report = _run_tests_subprocess(existing_tests)
+        else:
+            project_report = None
+
+        # Run generated smoke tests separately
+        if generated_paths:
+            generated_report = _run_tests_subprocess(generated_paths)
+        else:
+            generated_report = None
+
+        results["project_test_report"] = project_report
+        results["generated_test_report"] = generated_report
+
+        # Backward compat: test_report = project tests if available, else generated
+        primary_report = project_report if project_report else generated_report
+        results["test_report"] = primary_report
+
+        # Step 5: AI Failure Analysis & Root Cause Evaluation on primary report
+        if primary_report and (primary_report.get("failed", 0) > 0 or primary_report.get("errors", 0) > 0):
             from core.ai_agent_evaluator import AgentEvaluator
             evaluator = AgentEvaluator()
-            eval_result = evaluator.analyze_test_report(report.to_dict())
+            eval_result = evaluator.analyze_test_report(primary_report)
             results["evaluation"] = eval_result.to_dict()
 
     return results

@@ -22,10 +22,14 @@ apps/java_banking_app/target/
 **/target/
 *.class
 
-# Upload and extraction temporary directories
-reports/uploads/
-reports/extracted/
-reports/test_report_*.json
+# Generated test suites
+tests/generated/
+
+# Reports and temporary extractions
+reports/
+
+# Sample ZIP archives
+*.zip
 dummy_front.jpg
 
 # Model checkpoints / large weight files

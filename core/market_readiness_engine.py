@@ -45,8 +45,8 @@ class PillarScores:
     security_score: float = 100.0          # Weight: 30%
     reliability_score: float = 100.0       # Weight: 25%
     code_health_score: float = 100.0       # Weight: 20%
-    api_readiness_score: float = 100.0     # Weight: 15%
-    genai_safety_score: float = 100.0      # Weight: 10%
+    api_readiness_score: Optional[float] = 100.0     # Weight: 15% (None = not evaluated)
+    genai_safety_score: Optional[float] = 100.0      # Weight: 10% (None = not evaluated)
 
 
 @dataclass
@@ -380,47 +380,67 @@ class MarketReadinessEngine:
                     report.pillar_scores.reliability_score = 100.0
             else:
                 scan_run = analyze_and_test(source_path=target_path, run_tests=True)
+                project_rep = scan_run.get("project_test_report")
+                generated_rep = scan_run.get("generated_test_report")
                 test_rep = scan_run.get("test_report")
-                report.test_summary = test_rep
-                report.ai_evaluation = scan_run.get("evaluation")
 
-                if test_rep:
-                    pass_rate = test_rep.get("pass_rate", 0.0)
-                    report.pillar_scores.reliability_score = pass_rate
+                # Build test_summary with smoke test details
+                if project_rep is not None:
+                    report.test_summary = dict(project_rep)
+                    report.test_summary["smoke_test_pass_rate"] = (
+                        generated_rep.get("pass_rate", 0.0) if generated_rep else None
+                    )
+                    report.test_summary["smoke_test_summary"] = dict(generated_rep) if generated_rep else None
+                    report.pillar_scores.reliability_score = project_rep.get("pass_rate", 0.0)
                 else:
-                    report.pillar_scores.reliability_score = 50.0
+                    # No existing project tests found
+                    base_summary = dict(test_rep) if test_rep else {
+                        "total": 0, "passed": 0, "failed": 0, "errors": 0, "pass_rate": 0.0,
+                        "results": [], "note": "No project tests found",
+                    }
+                    report.test_summary = base_summary
+                    report.test_summary["smoke_test_pass_rate"] = (
+                        generated_rep.get("pass_rate", 0.0) if generated_rep else None
+                    )
+                    report.test_summary["smoke_test_summary"] = dict(generated_rep) if generated_rep else None
+                    report.pillar_scores.reliability_score = 50.0  # No project tests → neutral 50
+
+                report.ai_evaluation = scan_run.get("evaluation")
         else:
             report.pillar_scores.reliability_score = 100.0
 
         # 5. Pillar IV: API Contract & Conformance (15% weight)
-        api_score = 100.0
-        # If API endpoints are detected, ensure no empty route mappings
-        if report.test_summary and report.test_summary.get("errors", 0) > 0:
-            api_score = max(40.0, api_score - (report.test_summary["errors"] * 10))
+        api_score: Optional[float] = None
+        api_evaluated = False
+        # Detect if any endpoints were found in the source analyses
+        _analyses = locals().get("scan_run", {}).get("analyses", []) if not is_java else []
+        total_endpoints = sum(a.get("endpoints_count", 0) for a in _analyses)
+        if is_java or total_endpoints > 0:
+            api_evaluated = True
+            api_score = 100.0
+            if report.test_summary and report.test_summary.get("errors", 0) > 0:
+                api_score = max(40.0, 100.0 - (report.test_summary["errors"] * 10))
         report.pillar_scores.api_readiness_score = api_score
 
         # 6. Pillar V: GenAI Safety & Prompt Injection Resilience (10% weight)
-        genai_score = 100.0
+        genai_score: Optional[float] = None
+        genai_evaluated = False
         if "rag" in report.archetype.lower() or "genai" in report.archetype.lower():
-            # If RAG pipeline is evaluated
+            genai_evaluated = True
             genai_score = 90.0
         report.pillar_scores.genai_safety_score = genai_score
 
-        # 7. Compute Weighted Market Readiness Index
-        weights = {
-            "security": 0.30,
-            "reliability": 0.25,
-            "code_health": 0.20,
-            "api": 0.15,
-            "genai": 0.10,
-        }
-        total_score = (
-            report.pillar_scores.security_score * weights["security"]
-            + report.pillar_scores.reliability_score * weights["reliability"]
-            + report.pillar_scores.code_health_score * weights["code_health"]
-            + report.pillar_scores.api_readiness_score * weights["api"]
-            + report.pillar_scores.genai_safety_score * weights["genai"]
-        )
+        # 7. Compute Weighted Market Readiness Index (skip None pillars, renormalize)
+        pillar_weights = [
+            (report.pillar_scores.security_score, 0.30),
+            (report.pillar_scores.reliability_score, 0.25),
+            (report.pillar_scores.code_health_score, 0.20),
+            (api_score, 0.15),
+            (genai_score, 0.10),
+        ]
+        evaluated = [(score, w) for score, w in pillar_weights if score is not None]
+        total_weight = sum(w for _, w in evaluated)
+        total_score = sum(score * w for score, w in evaluated) / max(total_weight, 1e-9)
         report.market_readiness_score = round(total_score, 1)
 
         # 8. Governance Gate Determination
@@ -447,7 +467,7 @@ class MarketReadinessEngine:
         else:
             report.gate_decision = "MARKET_BLOCKED"
 
-        # 9. Cryptographic Verification Hash
+        # 9. SHA-256 Integrity Checksum
         raw = json.dumps(report.to_dict(), sort_keys=True, default=str).encode("utf-8")
         import hashlib
         report.signature = hashlib.sha256(raw).hexdigest()
